@@ -81,4 +81,45 @@ def decode_access_token(token: str) -> dict:
         )
 
 
-async 
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """FastAPI dependency: Extract and verify current active user from DB."""
+    from app.models.user import User
+
+    payload = decode_access_token(token)
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        user_id_int = int(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Malformed user ID in token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = db.query(User).filter(User.id == user_id_int).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User account no longer exists",
+        )
+    return user
+
+
+def require_role(allowed_roles: List[str]):
+    """Role-Based Access Control (RBAC) dependency factory."""
+    async def role_checker(current_user=Depends(get_current_user)):
+        user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+        if user_role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access forbidden: required role in {allowed_roles}, your role is {user_role}",
+            )
+        return current_user
+    return role_checker
