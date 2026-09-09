@@ -54,3 +54,10 @@ class JobUpdate(BaseModel):
         return data
 
 
+class JobResponse(JobBase):
+    """Schema for serializing a job posting in API responses."""
+    id: int
+    recruiter_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
