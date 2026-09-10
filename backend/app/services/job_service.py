@@ -70,4 +70,11 @@ class JobService:
         return job
 
     @staticmethod
-    
+    def delete_job(db: Session, job_id: int) -> bool:
+        """Remove a job vacancy by primary key ID."""
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            return False
+        db.delete(job)
+        db.commit()
+        return True
