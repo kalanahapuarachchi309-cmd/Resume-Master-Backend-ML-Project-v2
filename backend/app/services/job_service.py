@@ -49,4 +49,25 @@ class JobService:
         return job
 
     @staticmethod
+    def update_job(db: Session, job_id: int, job_update: JobUpdate) -> Optional[Job]:
+        """Update fields on an existing job vacancy."""
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            return None
+
+        update_data = job_update.model_dump(exclude_unset=True)
+        if "min_experience_years" in update_data and "experience_required" not in update_data:
+            update_data["experience_required"] = float(update_data["min_experience_years"])
+        elif "experience_required" in update_data and update_data["experience_required"] is not None:
+            update_data["experience_required"] = float(update_data["experience_required"])
+
+        for key, value in update_data.items():
+            if hasattr(job, key):
+                setattr(job, key, value)
+
+        db.commit()
+        db.refresh(job)
+        return job
+
+    @staticmethod
     
