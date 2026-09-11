@@ -32,3 +32,12 @@ def list_jobs(
     return JobService.list_jobs(db=db, skip=skip, limit=limit, search=search)
 
 
+@router.get("/{job_id}", response_model=JobResponse)
+def get_job(job_id: int, db: Session = Depends(get_db)):
+    """Retrieve detailed specifications for a specific job."""
+    job = JobService.get_job(db=db, job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return job
+
+
