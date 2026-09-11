@@ -112,4 +112,142 @@ class CloudinaryService:
             return None
 
     @classmethod
-    
+    def list_resumes(cls, max_results: int = 500) -> list:
+        """List all resume resources stored in Cloudinary folder."""
+        if not _has_cloudinary:
+            return []
+        cls._init_cloudinary()
+        folder = settings.CLOUDINARY_FOLDER or "resume_master"
+        try:
+            res = cloudinary.api.resources(
+                type="upload",
+                resource_type="raw",
+                prefix=folder,
+                max_results=max_results,
+            )
+            return res.get("resources", [])
+        except Exception as e:
+            logger.error(f"Failed to list Cloudinary resources: {e}")
+            return []
+
+    @classmethod
+    def download_resume_bytes(cls, url: str) -> Optional[bytes]:
+        """Download resume document bytes directly from Cloudinary CDN URL."""
+        import httpx
+        try:
+            resp = httpx.get(url, follow_redirects=True, timeout=30.0)
+            if resp.status_code == 200:
+                return resp.content
+            return None
+        except Exception as e:
+            logger.error(f"Failed to download resume from Cloudinary URL {url}: {e}")
+            return None
+
+    @classmethod
+    def sync_missing_to_cloudinary(cls, db) -> int:
+        """Upload any existing resumes without Cloudinary CDN URLs directly to Cloudinary."""
+        from app.models.resume import Resume
+
+        missing_resumes = (
+            db.query(Resume)
+            .filter((Resume.file_url == None) | (~Resume.file_url.startswith("http")))
+            .all()
+        )
+        updated_count = 0
+        for r in missing_resumes:
+            if r.file_path and os.path.exists(r.file_path):
+                try:
+                    with open(r.file_path, "rb") as f:
+                        file_bytes = f.read()
+                    cloud_url = cls.upload_resume(file_bytes, r.filename)
+                    if cloud_url:
+                        r.file_url = cloud_url
+                        updated_count += 1
+                except Exception as e:
+                    logger.error(f"Failed to upload local file for resume #{r.id}: {e}")
+        if updated_count > 0:
+            db.commit()
+        return updated_count
+
+    @classmethod
+    def sync_from_cloudinary(cls, db, user_id: Optional[int] = None) -> dict:
+        """Sync and import any resumes stored on Cloudinary into the database."""
+        from app.models.resume import Resume
+        from app.services.parsers.pdf_parser import PDFParser
+        from app.services.parsers.docx_parser import DocxParser
+        from app.services.nlp.skill_extractor import SkillExtractor
+        import re
+
+        # 1. First ensure any local resumes have Cloudinary URLs
+        local_uploaded = cls.sync_missing_to_cloudinary(db)
+
+        # 2. Query Cloudinary CDN resources
+        resources = cls.list_resumes(max_results=500)
+        existing_urls = {
+            r[0] for r in db.query(Resume.file_url).filter(Resume.file_url != None).all()
+        }
+
+        imported_count = 0
+        for item in resources:
+            secure_url = item.get("secure_url") or item.get("url")
+            if not secure_url or secure_url in existing_urls:
+                continue
+
+            # Download document from Cloudinary CDN
+            file_bytes = cls.download_resume_bytes(secure_url)
+            if not file_bytes:
+                continue
+
+            public_id = item.get("public_id", "")
+            raw_filename = public_id.split("/")[-1]
+            ext = os.path.splitext(raw_filename)[1].lower()
+            if not ext:
+                ext = ".pdf"
+                raw_filename += ".pdf"
+
+            try:
+                if ext == ".pdf":
+                    raw_text = PDFParser.extract_text(file_bytes) if PDFParser.validate_file(file_bytes) else ""
+                else:
+                    raw_text = DocxParser.extract_text(file_bytes) if DocxParser.validate_file(file_bytes) else ""
+
+                skills = SkillExtractor.extract_skills(raw_text)
+                exp_years = SkillExtractor.extract_experience_years(raw_text)
+                edu_level = SkillExtractor.extract_education(raw_text)
+                cand_email = SkillExtractor.extract_email(raw_text)
+
+                base_name = raw_filename.rsplit(".", 1)[0]
+                clean_name = re.sub(r"(?i)(_resume|_cv|resume|cv)", "", base_name).strip(" _-")
+                cand_name = clean_name.replace("_", " ").replace("-", " ").title()
+                if not cand_name:
+                    cand_name = raw_filename.rsplit(".", 1)[0].title()
+
+                resume = Resume(
+                    candidate_id=user_id,
+                    candidate_name=cand_name,
+                    candidate_email=cand_email,
+                    filename=raw_filename,
+                    file_path=secure_url,
+                    file_url=secure_url,
+                    raw_text=raw_text,
+                    parsed_skills=skills,
+                    experience_years=exp_years,
+                    education_level=edu_level,
+                )
+                db.add(resume)
+                db.commit()
+                db.refresh(resume)
+                existing_urls.add(secure_url)
+                imported_count += 1
+            except Exception as e:
+                logger.error(f"Failed to import Cloudinary resource {secure_url}: {e}")
+                continue
+
+        total_resumes = db.query(Resume).count()
+        return {
+            "status": "success",
+            "local_synced_to_cloudinary": local_uploaded,
+            "newly_imported_from_cloudinary": imported_count,
+            "total_cloudinary_resumes_in_db": total_resumes,
+            "total_resources_in_cloudinary": len(resources),
+        }
