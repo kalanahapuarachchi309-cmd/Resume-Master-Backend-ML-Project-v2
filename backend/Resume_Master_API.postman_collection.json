@@ -1,0 +1,299 @@
+{
+  "info": {
+    "_postman_id": "a9c1e784-21df-4b3f-b88a-9310d54a9381",
+    "name": "Resume Master AI Matching API",
+    "description": "Postman API testing collection for the AI Resume/CV Screening and Job Matching System.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "recruiterToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "candidateToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. System Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "2. Register Recruiter",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"recruiter.demo@techcorp.com\",\n  \"name\": \"Sarah Jenkins\",\n  \"password\": \"SecurePass123!\",\n  \"role\": \"RECRUITER\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "3. Login as Recruiter",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.access_token) {",
+              "    pm.collectionVariables.set('recruiterToken', jsonData.access_token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"recruiter.demo@techcorp.com\",\n  \"password\": \"SecurePass123!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "4. Get Current User Profile (Me)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{recruiterToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "5. Register Candidate",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"alex.candidate@gmail.com\",\n  \"name\": \"Alex Johnson\",\n  \"password\": \"CandidatePass123!\",\n  \"role\": \"CANDIDATE\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "6. Login as Candidate",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.access_token) {",
+              "    pm.collectionVariables.set('candidateToken', jsonData.access_token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"alex.candidate@gmail.com\",\n  \"password\": \"CandidatePass123!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "7. Create Job Vacancy (Recruiter)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.id) {",
+              "    pm.collectionVariables.set('jobId', jsonData.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{recruiterToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Senior Python Backend Developer\",\n  \"description\": \"Looking for Senior Python Developer with deep experience in FastAPI, PostgreSQL, Docker, Redis, and microservices architecture. Minimum 4 years experience required with Bachelor degree.\",\n  \"required_skills\": [\n    \"Python\",\n    \"FastAPI\",\n    \"PostgreSQL\",\n    \"Docker\",\n    \"Redis\",\n    \"REST API\"\n  ],\n  \"experience_required\": 4.0,\n  \"location\": \"Colombo, Sri Lanka / Remote\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/jobs/",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "jobs", ""]
+        }
+      }
+    },
+    {
+      "name": "8. List Available Jobs",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/jobs/?search=Python",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "jobs", ""],
+          "query": [
+            {
+              "key": "search",
+              "value": "Python"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. Upload Candidate Resume (PDF/DOCX)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{candidateToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/resumes/upload",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "resumes", "upload"]
+        }
+      }
+    },
+    {
+      "name": "10. Evaluate Candidates with ML Model",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{recruiterToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"job_id\": {{jobId}},\n  \"resume_ids\": null\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/matching/job/{{jobId}}/evaluate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "matching", "job", "{{jobId}}", "evaluate"]
+        }
+      }
+    },
+    {
+      "name": "11. Get Saved Candidate Rankings",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{recruiterToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/matching/job/{{jobId}}/rankings",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "matching", "job", "{{jobId}}", "rankings"]
+        }
+      }
+    }
+  ]
+}
