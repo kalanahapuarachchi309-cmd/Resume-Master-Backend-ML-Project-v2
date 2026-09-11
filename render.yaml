@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: resume-master-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CLOUDINARY_CLOUD_NAME
+        value: djsdwv2na
+      - key: CLOUDINARY_API_KEY
+        value: 216632618736747
+      - key: CLOUDINARY_API_SECRET
+        value: Bnfp7Px9C57hfxcXrdo2xYx26LY
+      - key: CLOUDINARY_FOLDER
+        value: resume_master
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: resume-master-db
+          property: connectionString
+
+databases:
+  - name: resume-master-db
+    databaseName: resume_matcher_db
+    user: resume_user
+    plan: free
