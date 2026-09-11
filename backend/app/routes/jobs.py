@@ -41,3 +41,46 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
     return job
 
 
+@router.put("/{job_id}", response_model=JobResponse)
+def update_job(
+    job_id: int,
+    job_update: JobUpdate,
+    current_user: User = Depends(require_role(["RECRUITER", "ADMIN"])),
+    db: Session = Depends(get_db),
+):
+    """Update existing job requirements (Job creator or Admin)."""
+    job = JobService.get_job(db=db, job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if job.recruiter_id != current_user.id and user_role not in ["ADMIN", "RECRUITER"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify this job posting"
+        )
+
+    updated_job = JobService.update_job(db=db, job_id=job_id, job_update=job_update)
+    return updated_job
+
+
+@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_job(
+    job_id: int,
+    current_user: User = Depends(require_role(["RECRUITER", "ADMIN"])),
+    db: Session = Depends(get_db),
+):
+    """Remove a job listing (Job creator, Recruiter, or Admin)."""
+    job = JobService.get_job(db=db, job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if job.recruiter_id != current_user.id and user_role not in ["ADMIN", "RECRUITER"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this job posting"
+        )
+
+    JobService.delete_job(db=db, job_id=job_id)
+    return None
