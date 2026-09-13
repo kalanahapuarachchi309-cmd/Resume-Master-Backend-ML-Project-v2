@@ -33,4 +33,12 @@ class TextCleaner:
         return text
 
     @classmethod
-    
+    def remove_stopwords(cls, text: str) -> str:
+        """Filter out common English stopwords while preserving technical terms."""
+        cleaned = cls.clean(text)
+        if not cleaned:
+            return ""
+
+        words = cleaned.split()
+        filtered = [w for w in words if w not in STOPWORDS and len(w) > 1]
+        return " ".join(filtered)
