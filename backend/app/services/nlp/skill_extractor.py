@@ -238,4 +238,26 @@ class SkillExtractor:
         return float(min(30.0, max(0.0, total_years)))
 
     @staticmethod
-    
+    def extract_education(text: str) -> str:
+        """Detect highest level of completed tertiary education."""
+        if not text:
+            return "None"
+
+        text_lower = text.lower()
+        # Doctorate
+        if re.search(r"(ph\.?d|doctor\s*of|doctorate)", text_lower):
+            return "PhD"
+        # Master
+        if re.search(r"(master|msc|m\.sc|m\.tech|mba|meng|postgraduate)", text_lower):
+            return "MSc"
+        # Bachelor
+        if re.search(r"(bachelor|bsc|b\.sc|b\.e|b\.tech|beng|bba|undergraduate|degree)", text_lower):
+            return "Bachelor"
+        # Diploma / Associate
+        if re.search(r"(diploma|associate|higher\s*diploma)", text_lower):
+            return "Diploma"
+        # High School
+        if re.search(r"(high\s*school|secondary)", text_lower):
+            return "High School"
+
+        return "None"
