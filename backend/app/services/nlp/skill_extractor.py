@@ -116,3 +116,28 @@ SKILL_ALIASES = {
 }
 
 
+class SkillExtractor:
+    """Extracts normalized technical skills, experience duration, and degrees."""
+
+    @staticmethod
+    def extract_skills(text: str) -> List[str]:
+        """Match and normalize programming languages, frameworks, and tools."""
+        if not text:
+            return []
+
+        text_lower = f" {text.lower()} "
+        found_skills = set()
+
+        # Sort alias keys by length descending to match multi-word phrases first
+        sorted_aliases = sorted(SKILL_ALIASES.keys(), key=lambda x: len(x), reverse=True)
+
+        for alias in sorted_aliases:
+            pattern = rf"(?:\b|\s){re.escape(alias)}(?:\b|\s|[,\.;])"
+            if re.search(pattern, text_lower):
+                canonical = SKILL_ALIASES[alias]
+                found_skills.add(canonical)
+
+        return sorted(list(found_skills))
+
+    @staticmethod
+    
