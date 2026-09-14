@@ -140,4 +140,20 @@ class SkillExtractor:
         return sorted(list(found_skills))
 
     @staticmethod
+    def extract_email(text: str) -> Optional[str]:
+        """Extract primary candidate email address from resume text."""
+        if not text:
+            return None
+        match = re.search(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", text)
+        return match.group(0).lower() if match else None
+
+    @staticmethod
+    def extract_phone(text: str) -> Optional[str]:
+        """Extract phone number if present."""
+        if not text:
+            return None
+        match = re.search(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", text)
+        return match.group(0).strip() if match else None
+
+    @staticmethod
     
