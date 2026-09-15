@@ -112,4 +112,48 @@ class FeatureEngineeringPipeline:
         # --- Technique 6: Experience Fit Binary ---
         exp_fit_binary = 1.0 if clean_cand_exp >= clean_req_exp else 0.0
 
-                return np.zeros((1, 7))
+        # --- Technique 7: Education Degree Ordinal Encoding ---
+        edu_ordinal = float(cand_edu_tier)
+
+        # 1x7 Feature vector identical to model training matrix:
+        feature_vector = np.array([[
+            tfidf_sim,
+            skill_overlap_ratio,
+            skill_count,
+            missing_skill_ratio,
+            exp_delta,
+            exp_fit_binary,
+            edu_ordinal,
+        ]], dtype=np.float32)
+
+        # Human-readable experience explainability description
+        if clean_cand_exp >= clean_req_exp + 1.0:
+            exp_summary = f"Exceeds Requirement (+{round(clean_cand_exp - clean_req_exp, 1)} yrs)"
+        elif clean_cand_exp >= clean_req_exp:
+            exp_summary = "Meets Requirement"
+        else:
+            gap = round(clean_req_exp - clean_cand_exp, 1)
+            exp_summary = f"Under Requirement (-{gap} yrs)"
+
+        # Education fit assessment
+        if cand_edu_tier > req_edu_tier:
+            edu_fit_summary = f"Exceeds Requirement ({cand_edu_name})"
+        elif cand_edu_tier == req_edu_tier and cand_edu_tier > 0:
+            edu_fit_summary = f"Meets Requirement ({cand_edu_name})"
+        elif cand_edu_tier < req_edu_tier and cand_edu_tier > 0:
+            edu_fit_summary = f"Under Requirement ({cand_edu_name} vs {req_edu_name})"
+        else:
+            edu_fit_summary = f"Requires {req_edu_name}"
+
+        explainability = {
+            "tfidf_similarity": round(tfidf_sim * 100.0, 1),
+            "skill_match_percentage": round(skill_overlap_ratio * 100.0, 1),
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills,
+            "experience_fit": exp_summary,
+            "experience_years": clean_cand_exp,
+            "education_level": cand_edu_name,
+            "education_fit": edu_fit_summary,
+        }
+
+        return feature_vector, explainability
