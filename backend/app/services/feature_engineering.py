@@ -37,4 +37,22 @@ def normalize_degree(degree_str: Optional[str]) -> Tuple[str, int]:
 
 
 class FeatureEngineeringPipeline:
-    pass
+    """Production feature engineering pipeline matching the offline training pipeline."""
+
+    _vectorizer = None
+
+    @classmethod
+    def get_vectorizer(cls):
+        """Lazy load the pre-trained TF-IDF vectorizer artifact."""
+        if cls._vectorizer is None:
+            vec_path = os.path.join(os.path.dirname(__file__), "..", "ml", "vectorizer.pkl")
+            if os.path.exists(vec_path):
+                try:
+                    with open(vec_path, "rb") as f:
+                        cls._vectorizer = pickle.load(f)
+                except Exception:
+                    cls._vectorizer = None
+        return cls._vectorizer
+
+    @classmethod
+    
