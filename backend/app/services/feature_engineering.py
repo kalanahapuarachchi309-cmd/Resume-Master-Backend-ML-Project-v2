@@ -106,4 +106,10 @@ class FeatureEngineeringPipeline:
 
         skill_count = float(len(matched_skills))
 
+        # --- Technique 5: Domain Metric: Experience Delta ---
+        exp_delta = float(np.clip(clean_cand_exp - clean_req_exp, -3.0, 3.0))
+
+        # --- Technique 6: Experience Fit Binary ---
+        exp_fit_binary = 1.0 if clean_cand_exp >= clean_req_exp else 0.0
+
                 return np.zeros((1, 7))
