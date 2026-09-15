@@ -55,4 +55,55 @@ class FeatureEngineeringPipeline:
         return cls._vectorizer
 
     @classmethod
-    
+    def extract_features(
+        cls,
+        resume_text: str,
+        job_description: str,
+        candidate_skills: List[str],
+        required_skills: List[str],
+        candidate_exp: Optional[float] = None,
+        required_exp: Optional[float] = 0.0,
+        candidate_edu: Optional[str] = "None",
+        required_edu: Optional[str] = "Bachelor",
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """Transforms a candidate resume & job description into a model-ready 1x7 feature vector
+        and returns explainable insights.
+        """
+        # --- Technique 8: Missing Value Imputation ---
+        clean_cand_exp = 0.0 if (candidate_exp is None or np.isnan(candidate_exp)) else float(candidate_exp)
+        clean_req_exp = 0.0 if (required_exp is None or np.isnan(required_exp)) else float(required_exp)
+        
+        cand_edu_name, cand_edu_tier = normalize_degree(candidate_edu)
+        req_edu_name, req_edu_tier = normalize_degree(required_edu)
+
+        # --- Technique 1: TF-IDF Text Similarity with pre-fitted vectorizer ---
+        vectorizer = cls.get_vectorizer()
+        if vectorizer is not None and resume_text and job_description:
+            try:
+                c_resume = TextCleaner.remove_stopwords(resume_text)
+                c_job = TextCleaner.remove_stopwords(job_description)
+                vec_r = vectorizer.transform([c_resume])
+                vec_j = vectorizer.transform([c_job])
+                tfidf_sim = float(cosine_similarity(vec_r, vec_j)[0][0])
+            except Exception:
+                tfidf_sim = 0.0
+        else:
+            tfidf_sim = 0.0
+
+        # --- Technique 2, 3, 4: Skill Features & Overlap ---
+        c_set = set(s.lower().strip() for s in (candidate_skills or []))
+        r_set = set(s.lower().strip() for s in (required_skills or []))
+
+        matched_skills = [s for s in (required_skills or []) if s.lower().strip() in c_set]
+        missing_skills = [s for s in (required_skills or []) if s.lower().strip() not in c_set]
+
+        if r_set:
+            skill_overlap_ratio = len(matched_skills) / len(r_set)
+            missing_skill_ratio = len(missing_skills) / len(r_set)
+        else:
+            skill_overlap_ratio = 1.0
+            missing_skill_ratio = 0.0
+
+        skill_count = float(len(matched_skills))
+
+                return np.zeros((1, 7))
