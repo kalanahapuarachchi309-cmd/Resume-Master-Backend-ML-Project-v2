@@ -266,3 +266,35 @@ def extract_features_for_dataset(df: pd.DataFrame, vectorizer: TfidfVectorizer, 
 # 3. MAIN TRAINING, EVALUATION & EXPORT ROUTINE
 # ---------------------------------------------------------
 
+def main():
+    print("=" * 70)
+    print("🚀 TRAINING & EVALUATION PIPELINE FOR RESUME SCREENING ML MODEL")
+    print("=" * 70)
+
+    # 1. Dataset Generation
+    df = build_credible_dataset(samples_per_role=240)
+    total_samples = len(df)
+    positives = int(df["match_label"].sum())
+    negatives = total_samples - positives
+
+    print(f"✓ Generated Dataset: {total_samples} samples")
+    print(f"  • Suitable Matches (Class 1): {positives} ({positives / total_samples * 100:.1f}%)")
+    print(f"  • Unsuitable Matches (Class 0): {negatives} ({negatives / total_samples * 100:.1f}%)")
+
+    # 2. Train / Test Split BEFORE feature vectorization (Prevents Data Leakage!)
+    train_df, test_df = train_test_split(df, test_size=0.20, random_state=42, stratify=df["match_label"])
+    print(f"✓ Split: {len(train_df)} Training pairs (80%) | {len(test_df)} Testing pairs (20%)")
+
+    # 3. Global TF-IDF Vectorizer
+    vectorizer = TfidfVectorizer(max_features=500, stop_words="english", ngram_range=(1, 2))
+
+    # 4. Feature Extraction
+    print("✓ Extracting 7 engineered features...")
+    X_train = extract_features_for_dataset(train_df, vectorizer, is_training=True)
+    y_train = train_df["match_label"].values
+
+    X_test = extract_features_for_dataset(test_df, vectorizer, is_training=False)
+    y_test = test_df["match_label"].values
+
+        pass
+if __name__ == '__main__': main()
