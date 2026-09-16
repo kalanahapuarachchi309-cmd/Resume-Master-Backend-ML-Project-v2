@@ -207,3 +207,62 @@ def build_credible_dataset(samples_per_role: int = 300) -> pd.DataFrame:
 # 2. FEATURE EXTRACTION PIPELINE (MANDATORY 6-7 TECHNIQUES)
 # ---------------------------------------------------------
 
+def extract_features_for_dataset(df: pd.DataFrame, vectorizer: TfidfVectorizer, is_training: bool = True) -> np.ndarray:
+    """Extract identical 7 numerical features across all resume-job pairs."""
+    features_list = []
+
+    # Prepare texts for TF-IDF
+    corpus_pairs = df["resume_text"].tolist()
+
+    if is_training:
+        # Fit vectorizer only on training resume corpus + job descriptions
+        all_texts = df["resume_text"].tolist() + df["job_description"].tolist()
+        vectorizer.fit(all_texts)
+
+    for _, row in df.iterrows():
+        # 1. TF-IDF Semantic Text Similarity
+        vec_resume = vectorizer.transform([row["resume_text"]])
+        vec_job = vectorizer.transform([row["job_description"]])
+        tfidf_sim = float(cosine_similarity(vec_resume, vec_job)[0][0])
+
+        # 2. Skill Overlap Ratio (Jaccard-like intersection)
+        c_skills = set(s.lower().strip() for s in row["candidate_skills"])
+        r_skills = set(s.lower().strip() for s in row["required_skills"])
+        matched = c_skills.intersection(r_skills)
+        skill_overlap = len(matched) / len(r_skills) if r_skills else 1.0
+
+        # 3. Total Matched Skill Count
+        skill_count = len(matched)
+
+        # 4. Missing Skill Ratio
+        missing_skills = r_skills - c_skills
+        missing_ratio = len(missing_skills) / len(r_skills) if r_skills else 0.0
+
+        # 5. Experience Delta (Clipped to [-3, +3])
+        cand_exp = row["candidate_exp"] if pd.notnull(row["candidate_exp"]) else 0.0
+        req_exp = row["required_exp"] if pd.notnull(row["required_exp"]) else 0.0
+        exp_delta = float(np.clip(cand_exp - req_exp, -3.0, 3.0))
+
+        # 6. Experience Fit Binary (1 if candidate meets or exceeds required years)
+        exp_fit = 1.0 if cand_exp >= req_exp else 0.0
+
+        # 7. Education Level Ordinal (0 to 4)
+        cand_edu = float(row["candidate_edu"]) if pd.notnull(row["candidate_edu"]) else 0.0
+
+        features_list.append([
+            tfidf_sim,
+            skill_overlap,
+            skill_count,
+            missing_ratio,
+            exp_delta,
+            exp_fit,
+            cand_edu,
+        ])
+
+    return np.array(features_list)
+
+
+# ---------------------------------------------------------
+# 3. MAIN TRAINING, EVALUATION & EXPORT ROUTINE
+# ---------------------------------------------------------
+
