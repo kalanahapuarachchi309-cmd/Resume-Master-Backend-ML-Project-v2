@@ -123,4 +123,87 @@ NON_TECH_PROFILES = [
 ]
 
 
-def build_credible_dataset(): pass
+def build_credible_dataset(samples_per_role: int = 300) -> pd.DataFrame:
+    """Construct a comprehensive dataset of realistic candidate resumes paired against jobs."""
+    np.random.seed(42)
+    rows = []
+
+    for job in JOB_PROFILES:
+        req_skills = job["required_skills"]
+        req_exp = job["required_exp"]
+        req_edu = job["required_edu"]
+
+        for _ in range(samples_per_role):
+            scenario = np.random.choice(
+                ["perfect_match", "high_match", "moderate_match", "low_match", "mismatch"],
+                p=[0.20, 0.30, 0.25, 0.15, 0.10]
+            )
+
+            if scenario == "perfect_match":
+                # Candidate has 100% of required skills, meets or slightly exceeds experience
+                cand_skills = list(req_skills) + ["git", "linux", "agile"]
+                # Experience can be slightly below (-0.5) to well above (+4.0)
+                cand_exp = round(max(0.5, req_exp + np.random.uniform(-0.5, 4.0)), 1)
+                cand_edu = np.random.choice([2, 3, 4], p=[0.6, 0.3, 0.1])
+                resume_text = f"Accomplished {job['title']} specialist offering complete technical proficiency in {', '.join(cand_skills)}. Successfully architected enterprise systems with {cand_exp} years of industry experience."
+                label = 1
+
+            elif scenario == "high_match":
+                # Candidate has 80-95% of skills
+                num_skills = max(2, len(req_skills) - 1)
+                cand_skills = list(np.random.choice(req_skills, size=num_skills, replace=False))
+                cand_skills += ["git", "docker", "agile"]
+                cand_exp = round(max(0.5, req_exp + np.random.uniform(-1.0, 3.0)), 1)
+                cand_edu = np.random.choice([2, 3, 4], p=[0.7, 0.25, 0.05])
+                resume_text = f"Professional {job['title']} with strong domain expertise in {', '.join(cand_skills)}. Proven track record with {cand_exp} years in software engineering and cloud infrastructure."
+                label = 1 if (cand_exp >= req_exp - 1.0) else (1 if num_skills >= len(req_skills) - 1 else 0)
+
+            elif scenario == "moderate_match":
+                # Candidate has 50-75% of skills
+                min_sk = max(2, int(len(req_skills) * 0.5))
+                max_sk = max(min_sk + 1, int(len(req_skills) * 0.8))
+                num_skills = min(len(req_skills), np.random.randint(min_sk, max_sk + 1))
+                cand_skills = list(np.random.choice(req_skills, size=num_skills, replace=False))
+                cand_exp = round(max(0.5, req_exp + np.random.uniform(-1.0, 3.0)), 1)
+                cand_edu = np.random.choice([1, 2, 3], p=[0.2, 0.7, 0.1])
+                resume_text = f"Mid-level developer familiar with {', '.join(cand_skills)}. {cand_exp} years background working with modern development stacks and collaborative agile sprints."
+                label = 1 if (num_skills >= len(req_skills) * 0.5 and cand_exp >= req_exp - 0.5) else 0
+
+            elif scenario == "low_match":
+                # Candidate has only 1-2 required skills
+                num_skills = min(2, len(req_skills))
+                cand_skills = list(np.random.choice(req_skills, size=num_skills, replace=False))
+                cand_skills += ["html", "css", "photoshop", "ms office"]
+                cand_exp = round(np.random.uniform(0.5, 2.0), 1)
+                cand_edu = np.random.choice([0, 1, 2], p=[0.3, 0.5, 0.2])
+                resume_text = f"Junior technologist with foundational exposure to {', '.join(cand_skills)}. Total experience {cand_exp} years with basic technical capabilities."
+                label = 0
+
+            else:  # mismatch
+                non_tech = np.random.choice(NON_TECH_PROFILES)
+                cand_skills = non_tech["skills"]
+                cand_exp = non_tech["exp"]
+                cand_edu = non_tech["edu"]
+                resume_text = non_tech["text"]
+                label = 0
+
+            rows.append({
+                "job_title": job["title"],
+                "job_description": job["description"],
+                "required_skills": req_skills,
+                "required_exp": req_exp,
+                "required_edu": req_edu,
+                "resume_text": resume_text,
+                "candidate_skills": cand_skills,
+                "candidate_exp": cand_exp,
+                "candidate_edu": cand_edu,
+                "match_label": label,
+            })
+
+    return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------
+# 2. FEATURE EXTRACTION PIPELINE (MANDATORY 6-7 TECHNIQUES)
+# ---------------------------------------------------------
+
