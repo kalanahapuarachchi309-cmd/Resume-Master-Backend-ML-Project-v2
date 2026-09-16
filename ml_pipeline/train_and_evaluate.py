@@ -296,5 +296,128 @@ def main():
     X_test = extract_features_for_dataset(test_df, vectorizer, is_training=False)
     y_test = test_df["match_label"].values
 
-        pass
-if __name__ == '__main__': main()
+    # 5. Model Candidate Evaluation
+    models = {
+        "Random Forest Classifier": RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42),
+        "Support Vector Machine (SVM)": SVC(probability=True, kernel="linear", random_state=42),
+        "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
+    }
+
+    results = {}
+    best_model_name = None
+    best_f1 = -1.0
+    best_model = None
+
+    print("\n" + "=" * 70)
+    print(f"{'Model Name':<30} | {'Accuracy':<9} | {'Precision':<9} | {'Recall':<9} | {'F1-Score':<9} | {'ROC-AUC':<9}")
+    print("-" * 70)
+
+    for name, clf in models.items():
+        # Train
+        clf.fit(X_train, y_train)
+
+        # Predict
+        y_pred = clf.predict(X_test)
+        y_proba = clf.predict_proba(X_test)[:, 1]
+
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred, zero_division=0)
+        rec = recall_score(y_test, y_pred, zero_division=0)
+        f1 = f1_score(y_test, y_pred, zero_division=0)
+        auc = roc_auc_score(y_test, y_proba)
+        cm = confusion_matrix(y_test, y_pred)
+
+        results[name] = {
+            "accuracy": acc,
+            "precision": prec,
+            "recall": rec,
+            "f1": f1,
+            "roc_auc": auc,
+            "confusion_matrix": cm,
+            "model": clf,
+        }
+
+        print(f"{name:<30} | {acc * 100:6.2f}%   | {prec * 100:6.2f}%   | {rec * 100:6.2f}%   | {f1 * 100:6.2f}%   | {auc:7.4f}")
+
+        # Favor Random Forest if scores are equal
+        if f1 > best_f1 or (f1 == best_f1 and "Random Forest" in name):
+            best_f1 = f1
+            best_model_name = name
+            best_model = clf
+
+    print("=" * 70)
+    print(f"🏆 SELECTED BEST MODEL: {best_model_name} (F1-Score: {best_f1 * 100:.2f}%)")
+
+    # 6. Save Artifacts for Backend
+    export_dir = os.path.join(os.path.dirname(__file__), "..", "backend", "app", "ml")
+    os.makedirs(export_dir, exist_ok=True)
+
+    model_path = os.path.join(export_dir, "model.pkl")
+    vectorizer_path = os.path.join(export_dir, "vectorizer.pkl")
+
+    with open(model_path, "wb") as f:
+        pickle.dump(best_model, f)
+    with open(vectorizer_path, "wb") as f:
+        pickle.dump(vectorizer, f)
+
+    print(f"✓ Model successfully serialized: {os.path.abspath(model_path)}")
+    print(f"✓ Vectorizer successfully serialized: {os.path.abspath(vectorizer_path)}")
+
+    # 7. Generate EVALUATION_REPORT.md for Viva Voce & Academic Report
+    report_path = os.path.join(os.path.dirname(__file__), "EVALUATION_REPORT.md")
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(f"""# Machine Learning Model Evaluation Report
+
+**Project:** AI Resume/CV Screening & Job Matching System  
+**Prepared by:** Hiruna (ML Engineer) & Backend Team  
+**Evaluation Date:** {pd.Timestamp.now().strftime('%Y-%m-%d')}  
+**Target Variable:** `match_label` (1 = Suitable Match, 0 = Unsuitable Match)  
+
+---
+
+## 1. Dataset Characteristics & Summary
+
+- **Total Samples:** {total_samples} resume-to-job matching pairs
+- **Class Distribution:**
+  - Class 1 (Suitable Match): {positives} ({positives / total_samples * 100:.1f}%)
+  - Class 0 (Unsuitable Match): {negatives} ({negatives / total_samples * 100:.1f}%)
+- **Data Splitting:** 80% Train ({len(train_df)} pairs) / 20% Test ({len(test_df)} pairs) with stratified split to prevent data leakage.
+
+---
+
+## 2. Mandatory Feature Engineering Techniques (7 Features)
+
+1. **TF-IDF Semantic Similarity:** Fitted on training text corpus; cosine similarity computed between candidate resume and job vacancy.
+2. **Skill Overlap Ratio:** Jaccard-like intersection ratio: $|\\text{{Candidate Skills}} \\cap \\text{{Required Skills}}| / |\\text{{Required Skills}}|$.
+3. **Skill Count:** Total count of overlapping required skills.
+4. **Missing Skill Ratio:** Proportion of mandatory skills absent: $|\\text{{Missing Skills}}| / |\\text{{Required Skills}}|$.
+5. **Experience Delta:** Candidate years minus required years, bounded within $[-3.0, +3.0]$.
+6. **Experience Fit Binary:** Indicator variable (1 if candidate meets/exceeds requirement, 0 otherwise).
+7. **Education Level Ordinal Encoding:** None=0, Diploma=1, Bachelor=2, Master=3, PhD=4.
+
+---
+
+## 3. Comparative Model Evaluation Results
+
+| Model Name | Accuracy | Precision | Recall | F1-Score | ROC-AUC |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+""")
+        for name, metrics in results.items():
+            f.write(f"| **{name}** | {metrics['accuracy'] * 100:.2f}% | {metrics['precision'] * 100:.2f}% | {metrics['recall'] * 100:.2f}% | **{metrics['f1'] * 100:.2f}%** | {metrics['roc_auc']:.4f} |\n")
+
+        f.write(f"""
+---
+
+## 4. Winning Model Selection
+
+The **{best_model_name}** was selected for production inference because it achieved the highest **F1-Score of {best_f1 * 100:.2f}%**. In recruitment screening, F1-score is the optimal selection metric because it balances false positives (shortlisting unqualified candidates) and false negatives (rejecting qualified talent).
+
+The serialized model is stored at `backend/app/ml/model.pkl` and directly integrated with the FastAPI ranking engine.
+""")
+
+    print(f"✓ Viva report generated: {os.path.abspath(report_path)}")
+    print("=" * 70)
+
+
+if __name__ == "__main__":
+    main()
