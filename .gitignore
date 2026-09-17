@@ -1,0 +1,54 @@
+﻿# Python Bytecode and Caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# ML Models & Heavy Binaries
+*.joblib
+*.h5
+*.pt
+*.onnx
+
+# Uploads & Temporary Parsing Cache
+temp/
+storage/
+
+# IDE & OS Specific
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Database Files
+*.db
+*.sqlite3
+
+# Frontend Sub-project (Separate Git Repository)
+frontend/
+
+# Internal Team Planning & Division Files (DO NOT COMMIT)
+TEAM_5_MEMBER_DIVISION.md
+TEAM_VIVA_GUIDE.md
+team_division.md
+*member_division*.md
