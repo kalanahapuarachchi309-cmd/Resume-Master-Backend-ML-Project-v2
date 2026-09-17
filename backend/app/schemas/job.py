@@ -16,13 +16,32 @@ class JobBase(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def handle_job_aliases(cls, data: Any) -> Any:
+        def parse_skills(val: Any) -> List[str]:
+            if isinstance(val, list):
+                return val
+            if isinstance(val, str):
+                import json
+                try:
+                    p = json.loads(val)
+                    if isinstance(p, list):
+                        return p
+                except Exception:
+                    pass
+                return [s.strip() for s in val.split(",") if s.strip()]
+            return []
+
         if isinstance(data, dict):
             if "experience_required" not in data and "min_experience_years" in data:
                 data["experience_required"] = float(data["min_experience_years"])
             elif "min_experience_years" not in data and "experience_required" in data:
                 data["min_experience_years"] = float(data["experience_required"])
-        elif hasattr(data, "experience_required") and not getattr(data, "min_experience_years", None):
-            setattr(data, "min_experience_years", data.experience_required)
+            if "required_skills" in data and data["required_skills"] is not None:
+                data["required_skills"] = parse_skills(data["required_skills"])
+        elif hasattr(data, "experience_required"):
+            if not getattr(data, "min_experience_years", None):
+                setattr(data, "min_experience_years", data.experience_required)
+            skills = getattr(data, "required_skills", None)
+            setattr(data, "required_skills", parse_skills(skills))
         return data
 
 
@@ -44,13 +63,33 @@ class JobUpdate(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def handle_job_aliases(cls, data: Any) -> Any:
+        def parse_skills(val: Any) -> List[str]:
+            if isinstance(val, list):
+                return val
+            if isinstance(val, str):
+                import json
+                try:
+                    p = json.loads(val)
+                    if isinstance(p, list):
+                        return p
+                except Exception:
+                    pass
+                return [s.strip() for s in val.split(",") if s.strip()]
+            return []
+
         if isinstance(data, dict):
             if "experience_required" not in data and "min_experience_years" in data:
                 data["experience_required"] = float(data["min_experience_years"])
             elif "min_experience_years" not in data and "experience_required" in data:
                 data["min_experience_years"] = float(data["experience_required"])
-        elif hasattr(data, "experience_required") and not getattr(data, "min_experience_years", None):
-            setattr(data, "min_experience_years", data.experience_required)
+            if "required_skills" in data and data["required_skills"] is not None:
+                data["required_skills"] = parse_skills(data["required_skills"])
+        elif hasattr(data, "experience_required"):
+            if not getattr(data, "min_experience_years", None):
+                setattr(data, "min_experience_years", data.experience_required)
+            skills = getattr(data, "required_skills", None)
+            if skills is not None:
+                setattr(data, "required_skills", parse_skills(skills))
         return data
 
 

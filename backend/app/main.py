@@ -27,15 +27,20 @@ async def lifespan(app: FastAPI):
     # 3. Preload ML predictor artifacts
     predictor_service.load_model()
 
-    # 4. Automatically sync candidate resumes from Cloudinary CDN on boot
-    try:
-        from app.database.connection import SessionLocal
-        from app.services.cloudinary_service import CloudinaryService
-        db = SessionLocal()
-        CloudinaryService.sync_from_cloudinary(db)
-        db.close()
-    except Exception as e:
-        pass
+    # 4. Automatically sync candidate resumes from Cloudinary CDN on boot (in background thread)
+    import threading
+
+    def _bg_sync():
+        try:
+            from app.database.connection import SessionLocal
+            from app.services.cloudinary_service import CloudinaryService
+            db = SessionLocal()
+            CloudinaryService.sync_from_cloudinary(db)
+            db.close()
+        except Exception:
+            pass
+
+    threading.Thread(target=_bg_sync, daemon=True).start()
 
     yield
 

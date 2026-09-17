@@ -223,7 +223,8 @@ async def upload_batch_resumes(
     return results
 
 
-@router.get("/", response_model=List[ResumeDetailResponse])
+@router.get("", response_model=List[ResumeDetailResponse])
+@router.get("/", response_model=List[ResumeDetailResponse], include_in_schema=False)
 def list_resumes(
     skip: int = 0,
     limit: int = Query(300, ge=1, le=1000, description="Number of resumes to return"),

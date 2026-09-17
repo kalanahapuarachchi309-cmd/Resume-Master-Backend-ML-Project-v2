@@ -11,7 +11,8 @@ from app.core.security import require_role
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
-@router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_job(
     job_in: JobCreate,
     current_user: User = Depends(require_role(["RECRUITER", "ADMIN"])),
@@ -21,7 +22,8 @@ def create_job(
     return JobService.create_job(db=db, job_in=job_in, recruiter_id=current_user.id)
 
 
-@router.get("/", response_model=List[JobResponse])
+@router.get("", response_model=List[JobResponse])
+@router.get("/", response_model=List[JobResponse], include_in_schema=False)
 def list_jobs(
     skip: int = 0,
     limit: int = 50,
