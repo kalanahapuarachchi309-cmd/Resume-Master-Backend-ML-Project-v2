@@ -73,3 +73,23 @@ def test_predictor_scoring_bounds():
     assert 0.0 <= score <= 100.0
 
 
+def test_ranking_service_top_n_slicing():
+    """Verify that RankingService correctly applies top_n limit to rankings output."""
+    from app.database.connection import SessionLocal, init_db
+    from app.services.ranking_service import RankingService
+    from app.models.job import Job
+
+    init_db()
+    db = SessionLocal()
+    job = db.query(Job).first()
+    if job:
+        resp_all = RankingService.get_job_rankings(db, job.id)
+        assert resp_all.job_id == job.id
+        total_eval = resp_all.total_candidates_evaluated
+
+        if total_eval >= 3:
+            resp_top2 = RankingService.get_job_rankings(db, job.id, top_n=2)
+            assert len(resp_top2.rankings) == 2
+            assert resp_top2.total_candidates_evaluated == total_eval
+            # Verify sorted descending
+            assert resp_top2.rankings[0].match_score >= resp_top2.rankings[1].match_score
