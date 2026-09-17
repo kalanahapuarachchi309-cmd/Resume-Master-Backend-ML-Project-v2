@@ -64,3 +64,12 @@ def test_feature_engineering_pipeline():
     assert explain["skill_match_percentage"] == 80.0
 
 
+def test_predictor_scoring_bounds():
+    """Verify that predictor always produces a valid score between 0.0% and 100.0%."""
+    predictor = ResumeMatchPredictor()
+    dummy_features = np.array([[0.8, 0.9, 4.0, 0.2, 1.0, 1.0, 2.0]], dtype=np.float32)
+
+    score = predictor.predict_match_probability(dummy_features)
+    assert 0.0 <= score <= 100.0
+
+
