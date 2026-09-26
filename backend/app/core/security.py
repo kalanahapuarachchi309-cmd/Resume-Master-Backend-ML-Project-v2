@@ -1,4 +1,4 @@
-"""Security, Hashing, and JWT Authentication Subsystem (Kalana)."""
+﻿"""Security, Hashing, and JWT Authentication Subsystem (Kalana)."""
 import os
 import hmac
 import hashlib
@@ -9,26 +9,25 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 
+try:
+    import bcrypt
+    _has_bcrypt = True
+except ImportError:
+    _has_bcrypt = False
+
 from app.core.config import settings
 from app.database.connection import get_db
 
 # OAuth2 password bearer configuration
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
-# Try to use passlib for bcrypt, with a robust fallback
-try:
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    _has_passlib = True
-except Exception:
-    _has_passlib = False
-
 
 def get_password_hash(password: str) -> str:
-    """Generate secure salted password hash."""
-    if _has_passlib:
+    """Generate secure salted password hash using native bcrypt (with PBKDF2 fallback)."""
+    if _has_bcrypt:
         try:
-            return pwd_context.hash(password)
+            pwd_bytes = password.encode("utf-8")[:72]
+            return bcrypt.hashpw(pwd_bytes, bcrypt.gensalt()).decode("utf-8")
         except Exception:
             pass
     # Reliable PBKDF2-HMAC-SHA256 fallback
@@ -38,7 +37,9 @@ def get_password_hash(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify raw password against stored hash."""
+    """Verify raw password against stored hash (supports native bcrypt and legacy PBKDF2)."""
+    if not hashed_password or not plain_password:
+        return False
     if hashed_password.startswith("pbkdf2:"):
         parts = hashed_password.split(":")
         if len(parts) == 3:
@@ -46,9 +47,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
             stored_hash = parts[2]
             computed = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
             return hmac.compare_digest(stored_hash, computed)
-    if _has_passlib:
+    if _has_bcrypt and (hashed_password.startswith("$2b$") or hashed_password.startswith("$2a$")):
         try:
-            return pwd_context.verify(plain_password, hashed_password)
+            return bcrypt.checkpw(plain_password.encode("utf-8")[:72], hashed_password.encode("utf-8"))
         except Exception:
             pass
     return False
